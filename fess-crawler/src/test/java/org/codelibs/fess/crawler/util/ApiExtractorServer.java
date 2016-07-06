@@ -19,14 +19,18 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 
+import javax.servlet.ServletException;
+import javax.servlet.annotation.MultipartConfig;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.Part;
+
 import org.codelibs.core.io.FileUtil;
 import org.codelibs.fess.crawler.exception.CrawlerSystemException;
-import org.mortbay.jetty.Handler;
-import org.mortbay.jetty.Server;
-import org.mortbay.jetty.handler.DefaultHandler;
-import org.mortbay.jetty.handler.HandlerList;
-import org.mortbay.jetty.handler.ResourceHandler;
-import org.mortbay.log.Log;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.handler.ContextHandler;
+import org.eclipse.jetty.util.log.Log;
 
 /**
  * @author ma2tani
@@ -49,22 +53,54 @@ public class ApiExtractorServer {
     public ApiExtractorServer(final int port, final File docRoot) {
         this.port = port;
         this.docRoot = docRoot;
+        Log.getRootLogger().setDebugEnabled(true);
 
         server = new Server(port);
 
-        final ResourceHandler resource_handler = new ResourceHandler();
-        resource_handler.setWelcomeFiles(new String[] { "index.html" });
-        resource_handler.setResourceBase(docRoot.getAbsolutePath());
-        Log.info("serving " + resource_handler.getBaseResource());
-        final HandlerList handlers = new HandlerList();
-        handlers.setHandlers(new Handler[] { resource_handler,
-                new DefaultHandler() });
-        server.setHandler(handlers);
+        // String[] configuration = new String[] {
+        // "org.eclipse.jetty.webapp.WebInfConfiguration",
+        // "org.eclipse.jetty.webapp.WebXmlConfiguration",
+        // "org.eclipse.jetty.webapp.MetaInfConfiguration",
+        // "org.eclipse.jetty.webapp.FragmentConfiguration",
+        // "org.eclipse.jetty.plus.webapp.EnvConfiguration",
+        // "org.eclipse.jetty.plus.webapp.PlusConfiguration",
+        // "org.eclipse.jetty.annotations.AnnotationConfiguration",
+        // "org.eclipse.jetty.webapp.JettyWebXmlConfiguration" };
+        // server.setAttribute("org.eclipse.jetty.webapp.configuration", configuration);
+
+        server.setHandler(new PostHandler());
+    }
+
+    @MultipartConfig
+    public static class PostHandler extends ContextHandler {
+        public PostHandler() {
+            super("/post");
+        }
+
+        @Override
+        public void doHandle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
+                throws IOException, ServletException {
+            System.out.print(request.getContentType());
+            Part p = request.getPart("content");
+            System.out.print(p.getSize());
+            baseRequest.setHandled(true);
+        }
+    }
+
+    public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
+            throws IOException, ServletException {
+        System.out.println("target = " + target);
+
+        response.setContentType("text/html;charset=utf-8");
+        response.setStatus(HttpServletResponse.SC_OK);
+        baseRequest.setHandled(true);
+        response.getWriter().println("<h1>Hello Jetty!!</h1>");
     }
 
     public void start() {
         try {
             server.start();
+            server.join();
         } catch (final Exception e) {
             throw new CrawlerSystemException(e);
         }
@@ -95,37 +131,28 @@ public class ApiExtractorServer {
             buf.append("Disallow: /admin/").append('\n');
             buf.append("Disallow: /websvn/").append('\n');
             final File robotTxtFile = new File(tempDir, "robots.txt");
-            FileUtil.writeBytes(robotTxtFile.getAbsolutePath(), buf.toString()
-                    .getBytes("UTF-8"));
+            FileUtil.writeBytes(robotTxtFile.getAbsolutePath(), buf.toString().getBytes("UTF-8"));
             robotTxtFile.deleteOnExit();
 
             // sitemaps.xml
             buf = new StringBuilder();
-            buf.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>").append(
-                    '\n');
-            buf.append("<urlset ")
-                    .append("xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">")
-                    .append('\n');
+            buf.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>").append('\n');
+            buf.append("<urlset ").append("xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">").append('\n');
             buf.append("<url>").append('\n');
-            buf.append("<loc>http://localhost:7070/index.html</loc>").append(
-                    '\n');
-            buf.append("<loc>http://localhost:7070/file").append(count)
-                    .append("-1.html").append("</loc>").append('\n');
+            buf.append("<loc>http://localhost:7070/index.html</loc>").append('\n');
+            buf.append("<loc>http://localhost:7070/file").append(count).append("-1.html").append("</loc>").append('\n');
             buf.append("</url>").append('\n');
             buf.append("</urlset>").append('\n');
             File sitemapsFile = new File(tempDir, "sitemaps.xml");
-            FileUtil.writeBytes(sitemapsFile.getAbsolutePath(), buf.toString()
-                    .getBytes("UTF-8"));
+            FileUtil.writeBytes(sitemapsFile.getAbsolutePath(), buf.toString().getBytes("UTF-8"));
             robotTxtFile.deleteOnExit();
 
             // sitemaps.txt
             buf = new StringBuilder();
             buf.append("http://localhost:7070/index.html").append('\n');
-            buf.append("http://localhost:7070/file").append(count)
-                    .append("-1.html").append('\n');
+            buf.append("http://localhost:7070/file").append(count).append("-1.html").append('\n');
             sitemapsFile = new File(tempDir, "sitemaps.txt");
-            FileUtil.writeBytes(sitemapsFile.getAbsolutePath(), buf.toString()
-                    .getBytes("UTF-8"));
+            FileUtil.writeBytes(sitemapsFile.getAbsolutePath(), buf.toString().getBytes("UTF-8"));
             robotTxtFile.deleteOnExit();
 
             generateContents(tempDir, count);
@@ -136,8 +163,7 @@ public class ApiExtractorServer {
         }
     }
 
-    private static void generateContents(final File dir, final int count)
-            throws Exception {
+    private static void generateContents(final File dir, final int count) throws Exception {
         if (count <= 0) {
             return;
         }
@@ -146,14 +172,12 @@ public class ApiExtractorServer {
 
         final File indexFile = new File(dir, "index.html");
         indexFile.deleteOnExit();
-        FileUtil.writeBytes(indexFile.getAbsolutePath(),
-                content.getBytes("UTF-8"));
+        FileUtil.writeBytes(indexFile.getAbsolutePath(), content.getBytes("UTF-8"));
 
         for (int i = 1; i <= 10; i++) {
             final File file = new File(dir, "file" + count + "-" + i + ".html");
             file.deleteOnExit();
-            FileUtil.writeBytes(file.getAbsolutePath(),
-                    content.getBytes("UTF-8"));
+            FileUtil.writeBytes(file.getAbsolutePath(), content.getBytes("UTF-8"));
             final File childDir = new File(dir, "dir" + count + "-" + i);
             childDir.mkdirs();
             generateContents(childDir, count - 1);
@@ -191,7 +215,7 @@ public class ApiExtractorServer {
         buf.append("</body></html>");
         return buf.toString();
     }
-    
+
     private File returnResponse(final int count) {
         File tempDir = null;
         try {
@@ -202,7 +226,7 @@ public class ApiExtractorServer {
         }
         tempDir.delete();
         tempDir.mkdirs();
-        
+
         final StringBuilder buf = new StringBuilder();
         buf.append("<html><head><title>Title ");
         for (int i = 1; i <= 10; i++) {
@@ -213,13 +237,13 @@ public class ApiExtractorServer {
         final File apiExTxtFile = new File(tempDir, "apiExTxt.txt");
         try {
             FileUtil.writeBytes(apiExTxtFile.getAbsolutePath(), buf.toString().getBytes("UTF-8"));
-            
+
         } catch (UnsupportedEncodingException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
         apiExTxtFile.deleteOnExit();
         return apiExTxtFile;
-        
+
     }
 }
