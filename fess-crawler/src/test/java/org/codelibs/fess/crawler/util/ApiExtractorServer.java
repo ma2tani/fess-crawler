@@ -17,7 +17,6 @@ package org.codelibs.fess.crawler.util;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.MultipartConfig;
@@ -30,7 +29,6 @@ import org.codelibs.fess.crawler.exception.CrawlerSystemException;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandler;
-import org.eclipse.jetty.util.log.Log;
 
 /**
  * @author ma2tani
@@ -48,27 +46,34 @@ public class ApiExtractorServer {
     public ApiExtractorServer(final int port) {
         this(port, createDocRoot(3));
         tempDocRoot = true;
+        server = new Server(port);
+
+        PostHandler post_handler = new PostHandler();
+        //        Log.getLog().info("serving " + post_handler.getBaseResource());
+        server.setHandler(post_handler);
     }
 
     public ApiExtractorServer(final int port, final File docRoot) {
         this.port = port;
         this.docRoot = docRoot;
-        Log.getRootLogger().setDebugEnabled(true);
 
         server = new Server(port);
 
-        // String[] configuration = new String[] {
-        // "org.eclipse.jetty.webapp.WebInfConfiguration",
-        // "org.eclipse.jetty.webapp.WebXmlConfiguration",
-        // "org.eclipse.jetty.webapp.MetaInfConfiguration",
-        // "org.eclipse.jetty.webapp.FragmentConfiguration",
-        // "org.eclipse.jetty.plus.webapp.EnvConfiguration",
-        // "org.eclipse.jetty.plus.webapp.PlusConfiguration",
-        // "org.eclipse.jetty.annotations.AnnotationConfiguration",
-        // "org.eclipse.jetty.webapp.JettyWebXmlConfiguration" };
-        // server.setAttribute("org.eclipse.jetty.webapp.configuration", configuration);
+        //         String[] configuration = new String[] {
+        //         "org.eclipse.jetty.webapp.WebInfConfiguration",
+        //         "org.eclipse.jetty.webapp.WebXmlConfiguration",
+        //         "org.eclipse.jetty.webapp.MetaInfConfiguration",
+        //         "org.eclipse.jetty.webapp.FragmentConfiguration",
+        //         "org.eclipse.jetty.plus.webapp.EnvConfiguration",
+        //         "org.eclipse.jetty.plus.webapp.PlusConfiguration",
+        //         "org.eclipse.jetty.annotations.AnnotationConfiguration",
+        //         "org.eclipse.jetty.webapp.JettyWebXmlConfiguration" };
+        //         server.setAttribute("org.eclipse.jetty.webapp.configuration", configuration);
 
-        server.setHandler(new PostHandler());
+        PostHandler post_handler = new PostHandler();
+        //        Log.getLog().info("serving " + post_handler.getBaseResource());
+        server.setHandler(post_handler);
+        //        startjoin();
     }
 
     @MultipartConfig
@@ -87,6 +92,10 @@ public class ApiExtractorServer {
         }
     }
 
+    //    public void doPost(String target) {
+    //        System.out.println(target);
+    //    }
+
     public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
         System.out.println("target = " + target);
@@ -100,7 +109,7 @@ public class ApiExtractorServer {
     public void start() {
         try {
             server.start();
-            server.join();
+            //            server.join();
         } catch (final Exception e) {
             throw new CrawlerSystemException(e);
         }
@@ -109,7 +118,6 @@ public class ApiExtractorServer {
     public void stop() {
         try {
             server.stop();
-            server.join();
         } catch (final Exception e) {
             throw new CrawlerSystemException(e);
         } finally {
@@ -121,7 +129,7 @@ public class ApiExtractorServer {
 
     protected static File createDocRoot(final int count) {
         try {
-            final File tempDir = File.createTempFile("crawlerDocRoot", "");
+            final File tempDir = File.createTempFile("extracterDocRoot", "");
             tempDir.delete();
             tempDir.mkdirs();
 
@@ -214,36 +222,5 @@ public class ApiExtractorServer {
         }
         buf.append("</body></html>");
         return buf.toString();
-    }
-
-    private File returnResponse(final int count) {
-        File tempDir = null;
-        try {
-            tempDir = File.createTempFile("apiExtractor", "");
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        tempDir.delete();
-        tempDir.mkdirs();
-
-        final StringBuilder buf = new StringBuilder();
-        buf.append("<html><head><title>Title ");
-        for (int i = 1; i <= 10; i++) {
-            buf.append("<a href=\"file");
-            buf.append(count);
-        }
-
-        final File apiExTxtFile = new File(tempDir, "apiExTxt.txt");
-        try {
-            FileUtil.writeBytes(apiExTxtFile.getAbsolutePath(), buf.toString().getBytes("UTF-8"));
-
-        } catch (UnsupportedEncodingException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        apiExTxtFile.deleteOnExit();
-        return apiExTxtFile;
-
     }
 }
