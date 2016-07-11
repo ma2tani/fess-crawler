@@ -19,6 +19,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -34,6 +37,7 @@ import org.apache.http.entity.mime.content.FileBody;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
+import org.codelibs.core.lang.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,6 +64,14 @@ public class ApiExtractor implements Runnable {
 
     protected ThreadGroup extractorThreadGroup;
 
+
+    public ApiExtractor() {
+        crawlerContext = new CrawlerContext();
+        final SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmssSSS",
+                Locale.ENGLISH);
+        crawlerContext.sessionId = sdf.format(new Date());
+    }
+
     public void doPost() {
         HelloServlet hs = new HelloServlet();
         //        hs.doPost(request, response);
@@ -82,10 +94,104 @@ public class ApiExtractor implements Runnable {
         }
     }
 
+    public void addUrl(final String url) {
+        try {
+            //urlQueueService.add(crawlerContext.sessionId, url);
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    }
+
+    public String getSessionId() {
+        return crawlerContext.sessionId;
+    }
+
+    public void setSessionId(final String sessionId) {
+        if (StringUtil.isNotBlank(sessionId)
+                && !sessionId.equals(crawlerContext.sessionId)) {
+            //urlQueueService.updateSessionId(crawlerContext.sessionId, sessionId);
+            crawlerContext.sessionId = sessionId;
+        }
+    }
+
+    public String execute() {
+        parentThread = new Thread(this, "Crawler-" + crawlerContext.sessionId);
+        parentThread.setDaemon(daemon);
+        parentThread.start();
+        if (!background) {
+            awaitTermination();
+        }
+        return crawlerContext.sessionId;
+    }
+
+    public void awaitTermination() {
+        awaitTermination(0);
+    }
+
+    public void awaitTermination(final long millis) {
+        if (parentThread != null) {
+            try {
+                parentThread.join(millis);
+            } catch (final InterruptedException e) {
+                logger.warn("Interrupted job at " + parentThread.getName());
+            }
+        }
+    }
+
+    public void stop() {
+        crawlerContext.setStatus(CrawlerStatus.DONE);
+        try {
+            if (extractorThreadGroup != null) {
+                extractorThreadGroup.interrupt();
+            }
+        } catch (final Exception e) {
+            // ignore
+        }
+    }
+
+    public boolean isBackground() {
+        return background;
+    }
+
+    public void setBackground(final boolean background) {
+        this.background = background;
+    }
+
+    public boolean isDaemon() {
+        return daemon;
+    }
+
+    public void setDaemon(final boolean daemon) {
+        this.daemon = daemon;
+    }
+
     @Override
     public void run() {
-        // TODO Auto-generated method stub
+    }
 
+    public CrawlerContext getCrawlerContext() {
+        return crawlerContext;
+    }
+
+    public void setNumOfThread(final int numOfThread) {
+        crawlerContext.numOfThread = numOfThread;
+    }
+
+    public void setMaxThreadCheckCount(final int maxThreadCheckCount) {
+        crawlerContext.maxThreadCheckCount = maxThreadCheckCount;
+    }
+
+    public void setMaxDepth(final int maxDepth) {
+        crawlerContext.maxDepth = maxDepth;
+    }
+
+    public void setMaxAccessCount(final long maxAccessCount) {
+        crawlerContext.maxAccessCount = maxAccessCount;
+    }
+
+    public void setThreadPriority(final int threadPriority) {
+        this.threadPriority = threadPriority;
     }
 
     public void postMultipart(String url, String filePath) {
@@ -109,11 +215,9 @@ public class ApiExtractor implements Runnable {
                     HttpEntity text = response.getEntity();
                     System.out.println(EntityUtils.toString(text, StandardCharsets.UTF_8));
                 } else {
-                    System.err.println(response);
+                    logger.warn("Response code is not 200: ", response);
                 }
             }
-
-            // System.out.println(httpPost.getRequestLine());
         } catch (IOException e) {
             e.printStackTrace();
         }

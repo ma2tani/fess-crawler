@@ -41,15 +41,13 @@ public class ExtractorTest extends PlainTestCase {
         server.start();
 
         final String url = "http://localhost:7070/post/";
-        final File file = new File("/apiextractor/src/test/resources/extractor/image/test.jpg");
+        final String imgPath = "/apiextractor/src/test/resources/extractor/image/test.jpg";
+        final String textPath = "/apiextractor/src/test/resources/extractor/test.txt";
         try {
             final int maxCount = 50;
             final int numOfThread = 10;
 
-            //            server.doPost(url);
-
-            apiExtractor.postMultipart(url,
-                    "/Users/MK/testspace/extractor/fork/apiextractor/fess-crawler/src/test/resources/extractor/test.txt");
+            apiExtractor.postMultipart(url, imgPath);
 
         } finally {
             server.stop();
