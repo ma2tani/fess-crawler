@@ -97,20 +97,18 @@ public class ApiExtractorServer {
                 baseRequest.setAttribute(Request.__MULTIPART_CONFIG_ELEMENT, MULTI_PART_CONFIG);
             }
             Part part = request.getPart("filedata");
-            System.out.println(part.getSize());
             baseRequest.setHandled(true);
 
-            try (Stream<String> stream = Files.lines(Paths.get(TEXT_FILE_PATH))) {
-                stream.forEach(response.getWriter()::println);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        public void doPost(String target) {
-            System.out.println(target);
+            Stream<String> stream = Files.lines(Paths.get(TEXT_FILE_PATH));
+            stream.forEach(response.getWriter()::println);
         }
     }
+
+    /*
+    public void doPost(String target) {
+        System.out.println(target);
+    }
+    */
 
     public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
