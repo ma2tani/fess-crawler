@@ -40,7 +40,7 @@ public class ExtractorTest extends PlainTestCase {
         final ApiExtractorServer server = new ApiExtractorServer(7070);
         server.start();
 
-        final String url = "http://localhost:7070/post";
+        final String url = "http://localhost:7070/post/";
         final File file = new File("/apiextractor/src/test/resources/extractor/image/test.jpg");
         try {
             final int maxCount = 50;

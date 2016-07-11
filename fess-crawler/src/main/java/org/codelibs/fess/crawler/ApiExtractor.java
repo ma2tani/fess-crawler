@@ -18,6 +18,7 @@ package org.codelibs.fess.crawler;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -25,10 +26,14 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.http.HttpEntity;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.mime.HttpMultipartMode;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.entity.mime.content.FileBody;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,20 +89,34 @@ public class ApiExtractor implements Runnable {
     }
 
     public void postMultipart(String url, String filePath) {
-        HttpPost httpPost = new HttpPost(url);
-        httpPost.setHeader("enctype", "multipart/form-data");
+        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+            HttpPost httpPost = new HttpPost(url);
+            httpPost.setHeader("enctype", "multipart/form-data");
 
-        MultipartEntityBuilder multiPartEntityBuilder = MultipartEntityBuilder.create();
-        multiPartEntityBuilder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
-        multiPartEntityBuilder.setCharset(Charset.forName("UTF-8"));
+            File file = new File(filePath);
+            FileBody bin = new FileBody(file);;
 
-        File file = new File(filePath);
-        FileBody bin = new FileBody(file);
-        multiPartEntityBuilder.addPart("filedata", bin);
+            HttpEntity postEntity = MultipartEntityBuilder
+                    .create()
+                    .setMode(HttpMultipartMode.BROWSER_COMPATIBLE)
+                    .setCharset(Charset.forName("UTF-8"))
+                    .addPart("filedata", bin)
+                    .build();
+            httpPost.setEntity(postEntity);
 
-        HttpEntity postEntity = multiPartEntityBuilder.build();
-        httpPost.setEntity(postEntity);
-        System.out.println(httpPost.getRequestLine());
+            try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
+                if (response.getStatusLine().getStatusCode() == HttpServletResponse.SC_OK) {
+                    HttpEntity text = response.getEntity();
+                    System.out.println(EntityUtils.toString(text, StandardCharsets.UTF_8));
+                } else {
+                    System.err.println(response);
+                }
+            }
+
+            // System.out.println(httpPost.getRequestLine());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
 }

@@ -17,7 +17,11 @@ package org.codelibs.fess.crawler.util;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.stream.Stream;
 
+import javax.servlet.MultipartConfigElement;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.http.HttpServletRequest;
@@ -42,6 +46,10 @@ public class ApiExtractorServer {
     private Server server;
 
     private boolean tempDocRoot = false;
+
+    private static final MultipartConfigElement MULTI_PART_CONFIG = new MultipartConfigElement("");
+
+    private static final String TEXT_FILE_PATH = "/home/null/test.txt";
 
     public ApiExtractorServer(final int port) {
         this(port, createDocRoot(3));
@@ -79,22 +87,30 @@ public class ApiExtractorServer {
     @MultipartConfig
     public static class PostHandler extends ContextHandler {
         public PostHandler() {
-            super("/post");
+            super("/post/");
         }
 
         @Override
         public void doHandle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
                 throws IOException, ServletException {
-            System.out.print(request.getContentType());
-            Part p = request.getPart("content");
-            System.out.print(p.getSize());
+            if (request.getContentType() != null && request.getContentType().startsWith("multipart/form-data")) {
+                baseRequest.setAttribute(Request.__MULTIPART_CONFIG_ELEMENT, MULTI_PART_CONFIG);
+            }
+            Part part = request.getPart("filedata");
+            System.out.println(part.getSize());
             baseRequest.setHandled(true);
+
+            try (Stream<String> stream = Files.lines(Paths.get(TEXT_FILE_PATH))) {
+                stream.forEach(response.getWriter()::println);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        public void doPost(String target) {
+            System.out.println(target);
         }
     }
-
-    //    public void doPost(String target) {
-    //        System.out.println(target);
-    //    }
 
     public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
